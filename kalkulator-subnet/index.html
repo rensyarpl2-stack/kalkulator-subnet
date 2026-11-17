@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Kalkulator Subnet & VLSM</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17233c;
+      --ink-soft: #38445c;
+      --muted: #748098;
+      --muted-soft: #a0a9ba;
+      --line: #e8ecf3;
+      --surface: #fff;
+      --surface-alt: #f7f8fc;
+      --canvas: #f4f6fc;
+      --blue: #536dfe;
+      --blue-dark: #4058e8;
+      --blue-wash: #eef1ff;
+      --green: #159b72;
+      --red: #d84b59;
+      --shadow: 0 28px 80px rgba(38, 51, 91, .1);
+      --small-shadow: 0 14px 40px rgba(38, 51, 91, .06);
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --ink: #edf1ff;
+      --ink-soft: #d5dcf2;
+      --muted: #a0acc8;
+      --muted-soft: #8592af;
+      --line: #29344d;
+      --surface: #151e31;
+      --surface-alt: #1b2740;
+      --canvas: #0e1626;
+      --blue: #8494ff;
+      --blue-dark: #9cafff;
+      --blue-wash: #263258;
+      --green: #58d6a5;
+      --red: #ff8290;
+      --shadow: 0 28px 80px rgba(0, 0, 0, .28);
+      --small-shadow: 0 14px 40px rgba(0, 0, 0, .2);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-width: 0;
+      margin: 0;
+      padding: 30px clamp(16px, 4vw, 48px) 54px;
+      background:
+        radial-gradient(ellipse at 8% 0%, rgba(119, 142, 255, .16), transparent 34rem),
+        radial-gradient(ellipse at 94% 16%, rgba(72, 196, 171, .11), transparent 30rem),
+        var(--canvas);
+      color: var(--ink);
+      font: 15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .page {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 42px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .brand-icon {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border-radius: 14px;
+      background: linear-gradient(145deg, #7185ff, #4d61ed);
+      box-shadow: 0 8px 16px rgba(83, 109, 254, .24);
+      color: #fff;
+    }
+
+    .brand-icon svg {
+      width: 23px;
+      height: 23px;
+    }
+
+    .brand-name {
+      font-size: 15px;
+      font-weight: 750;
+      letter-spacing: -.025em;
+    }
+
+    .brand-subtitle {
+      display: block;
+      margin-top: 1px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 550;
+      letter-spacing: .01em;
+    }
+
+    .topbar-note {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      min-height: 40px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      transition: border-color .2s ease, transform .2s ease, background .2s ease;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--blue);
+      transform: translateY(-1px);
+    }
+
+    .theme-toggle svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #35bd8e;
+      box-shadow: 0 0 0 4px rgba(53, 189, 142, .12);
+    }
+
+    .intro {
+      display: grid;
+      max-width: 1180px;
+      grid-template-columns: minmax(0, 1.35fr) minmax(250px, .65fr);
+      align-items: center;
+      gap: 28px;
+      margin-bottom: 34px;
+    }
+
+    .intro-copy {
+      max-width: 760px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding: 7px 11px;
+      border: 1px solid rgba(83, 109, 254, .12);
+      border-radius: 999px;
+      background: rgba(238, 241, 255, .78);
+      color: var(--blue-dark);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow-mark {
+      width: 18px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--blue);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 5.4vw, 58px);
+      line-height: 1.12;
+      letter-spacing: -.055em;
+    }
+
+    .intro p {
+      max-width: 620px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      padding: 21px;
+      border: 1px solid rgba(255, 255, 255, .28);
+      border-radius: 22px;
+      background: linear-gradient(145deg, #273976, #536dfe 66%, #4fb99d);
+      box-shadow: 0 18px 42px rgba(69, 91, 205, .2);
+      color: #fff;
+    }
+
+    .hero-card::after {
+      position: absolute;
+      top: -50px;
+      right: -44px;
+      width: 150px;
+      height: 150px;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 50%;
+      box-shadow: 0 0 0 18px rgba(255, 255, 255, .04), 0 0 0 38px rgba(255, 255, 255, .035);
+      content: "";
+      pointer-events: none;
+    }
+
+    .hero-card-top,
+    .hero-card-bottom,
+    .hero-metric {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .hero-card-top {
+      color: rgba(255, 255, 255, .72);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .12em;
+    }
+
+    .hero-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #d7fff0;
+      letter-spacing: .05em;
+    }
+
+    .hero-live::before {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #79e1b5;
+      box-shadow: 0 0 0 4px rgba(121, 225, 181, .13);
+      content: "";
+    }
+
+    .hero-card-value {
+      margin: 20px 0 15px;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -.06em;
+      line-height: 1;
+    }
+
+    .hero-card-value span {
+      margin-left: 5px;
+      color: rgba(255, 255, 255, .76);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .hero-bits {
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      gap: 4px;
+      margin-bottom: 18px;
+    }
+
+    .hero-bits i {
+      height: 5px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, .32);
+    }
+
+    .hero-bits i:nth-child(-n+11) {
+      background: rgba(255, 255, 255, .92);
+    }
+
+    .hero-card-bottom {
+      padding-top: 13px;
+      border-top: 1px solid rgba(255, 255, 255, .2);
+    }
+
+    .hero-metric {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .hero-metric span {
+      color: rgba(255, 255, 255, .68);
+      font-size: 9px;
+    }
+
+    .hero-metric strong {
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(270px, .8fr);
+      align-items: start;
+      gap: 20px;
+    }
+
+    .app-card,
+    .side-card {
+      border: 1px solid var(--line);
+      border-radius: 25px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .app-card {
+      min-width: 0;
+      padding: 28px;
+    }
+
+    .side-card {
+      padding: 24px;
+      box-shadow: var(--small-shadow);
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--surface-alt);
+    }
+
+    .tab {
+      display: flex;
+      min-height: 46px;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background .2s ease, color .2s ease, box-shadow .2s ease, transform .2s ease;
+    }
+
+    .tab svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .tab:hover {
+      color: var(--ink);
+    }
+
+    .tab.active {
+      background: var(--surface);
+      color: var(--blue-dark);
+      box-shadow: 0 3px 10px rgba(35, 48, 84, .08);
+    }
+
+    .tab:focus-visible,
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(83, 109, 254, .27);
+      outline-offset: 2px;
+    }
+
+    .mode-panel {
+      padding-top: 27px;
+      animation: appear .28s ease both;
+    }
+
+    .mode-panel[hidden] {
+      display: none;
+    }
+
+    @keyframes appear {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 23px;
+    }
+
+    .section-heading h2 {
+      margin: 0;
+      font-size: 19px;
+      letter-spacing: -.035em;
+    }
+
+    .section-heading p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .section-icon {
+      display: grid;
+      width: 39px;
+      height: 39px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--blue-wash);
+      color: var(--blue-dark);
+    }
+
+    .section-icon svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    .field-label,
+    .host-label-row label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .field-hint {
+      float: right;
+      color: var(--muted-soft);
+      font-size: 11px;
+      font-weight: 550;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap input,
+    .host-input {
+      width: 100%;
+      min-height: 49px;
+      padding: 0 15px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      transition: border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .input-wrap input::placeholder,
+    .host-input::placeholder {
+      color: var(--muted-soft);
+    }
+
+    .input-wrap input:focus,
+    .host-input:focus {
+      border-color: #9aa8ff;
+      outline: 0;
+      box-shadow: 0 0 0 4px rgba(83, 109, 254, .09);
+    }
+
+    .input-suffix {
+      position: absolute;
+      top: 50%;
+      right: 14px;
+      color: var(--muted-soft);
+      font-size: 11px;
+      font-weight: 650;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .prefix-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .prefix-number {
+      width: 104px;
+      flex: 0 0 auto;
+    }
+
+    .prefix-number input {
+      padding-right: 31px;
+    }
+
+    .range-wrap {
+      flex: 1;
+      padding: 0 3px;
+    }
+
+    input[type="range"] {
+      display: block;
+      width: 100%;
+      height: 5px;
+      margin: 0;
+      border-radius: 10px;
+      appearance: none;
+      background: linear-gradient(to right, var(--blue) 0%, var(--blue) var(--range-progress, 75%), #e7eaf2 var(--range-progress, 75%), #e7eaf2 100%);
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      width: 17px;
+      height: 17px;
+      border: 3px solid white;
+      border-radius: 50%;
+      appearance: none;
+      background: var(--blue);
+      box-shadow: 0 1px 5px rgba(53, 70, 153, .35);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border: 3px solid white;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 1px 5px rgba(53, 70, 153, .35);
+    }
+
+    .range-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      color: var(--muted-soft);
+      font-size: 10px;
+    }
+
+    .prefix-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .prefix-caption strong {
+      color: var(--blue-dark);
+      font-weight: 750;
+    }
+
+    .quick-examples {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      margin: 4px 0 21px;
+    }
+
+    .quick-label {
+      margin-right: 2px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .chip {
+      padding: 5px 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font: 600 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      transition: border-color .2s ease, color .2s ease, background .2s ease;
+    }
+
+    .chip:hover {
+      border-color: #cbd3ff;
+      background: var(--surface-alt);
+      color: var(--blue-dark);
+    }
+
+    .primary,
+    .secondary,
+    .icon-button,
+    .copy-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 0;
+      cursor: pointer;
+      font-weight: 750;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+
+    .primary {
+      width: 100%;
+      min-height: 50px;
+      padding: 0 18px;
+      border-radius: 12px;
+      background: linear-gradient(105deg, #6279ff, #4c62ed);
+      box-shadow: 0 8px 17px rgba(83, 109, 254, .22);
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .primary:hover {
+      background: linear-gradient(105deg, #566ef5, #4058e8);
+      box-shadow: 0 11px 22px rgba(83, 109, 254, .28);
+      transform: translateY(-1px);
+    }
+
+    .primary:disabled {
+      cursor: wait;
+      opacity: .75;
+      transform: none;
+    }
+
+    .primary svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .secondary {
+      min-height: 38px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--ink-soft);
+      font-size: 11px;
+    }
+
+    .secondary:hover {
+      border-color: #cbd3ff;
+      background: var(--surface-alt);
+      color: var(--blue-dark);
+    }
+
+    .secondary svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .button-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: -2px 0 18px;
+    }
+
+    .host-label-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .host-label-row label {
+      margin-bottom: 8px;
+    }
+
+    .host-count {
+      color: var(--muted-soft);
+      font-size: 10px;
+    }
+
+    .host-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .host-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      animation: appear .2s ease both;
+    }
+
+    .host-input {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .host-input::-webkit-inner-spin-button,
+    .host-input::-webkit-outer-spin-button {
+      margin: 0;
+      appearance: none;
+    }
+
+    .remove-host {
+      width: 36px;
+      height: 36px;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted-soft);
+      cursor: pointer;
+      transition: background .18s ease, color .18s ease;
+    }
+
+    .remove-host:hover {
+      background: #fff0f1;
+      color: var(--red);
+    }
+
+    .remove-host svg {
+      width: 16px;
+      height: 16px;
+      vertical-align: middle;
+    }
+
+    .add-host {
+      margin: 11px 0 21px;
+    }
+
+    .result {
+      margin-top: 22px;
+    }
+
+    .result:empty {
+      display: none;
+    }
+
+    .result-panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--surface);
+      animation: appear .3s ease both;
+    }
+
+    .result-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 17px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-alt);
+    }
+
+    .result-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .result-check {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      border-radius: 8px;
+      background: #e8f8f1;
+      color: var(--green);
+    }
+
+    .result-check svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .result-title {
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .copy-button {
+      min-height: 30px;
+      padding: 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .copy-button:hover {
+      border-color: #cbd3ff;
+      color: var(--blue-dark);
+    }
+
+    .copy-button svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+    }
+
+    .result-item {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 5px;
+      padding: 13px 16px;
+      background: var(--surface);
+    }
+
+    .result-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+    }
+
+    .result-value {
+      overflow-wrap: anywhere;
+      color: var(--ink-soft);
+      font: 700 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .result-item.highlight .result-value {
+      color: var(--blue-dark);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 650px;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--surface-alt);
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    td {
+      color: var(--ink-soft);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover td {
+      background: var(--surface-alt);
+    }
+
+    td:first-child {
+      color: var(--blue-dark);
+      font-weight: 750;
+    }
+
+    .error {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 12px 14px;
+      border: 1px solid #f4d8dc;
+      border-radius: 11px;
+      background: #fff7f7;
+      color: #bb3d4c;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .error svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      margin-top: 1px;
+    }
+
+    .side-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .side-heading h3 {
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: -.02em;
+    }
+
+    .side-heading-icon {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      place-items: center;
+      border-radius: 10px;
+      background: #edfaf6;
+      color: #198e6d;
+    }
+
+    .side-heading-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .side-copy {
+      margin: -7px 0 17px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .bit-legend {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 0 8px;
+      color: #8a94a8;
+      font-size: 10px;
+    }
+
+    .bit-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 2px;
+      background: var(--blue);
+    }
+
+    .legend-dot.host {
+      background: #54c7a2;
+    }
+
+    .bit-grid {
+      display: grid;
+      grid-template-columns: repeat(32, minmax(0, 1fr));
+      gap: 3px;
+    }
+
+    .bit {
+      height: 14px;
+      border-radius: 3px;
+      background: #e9edf4;
+      transition: background .22s ease, transform .22s ease;
+    }
+
+    .bit.network {
+      background: linear-gradient(145deg, #7890ff, #536dfe);
+    }
+
+    .bit.host {
+      background: #63cfac;
+    }
+
+    .prefix-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid #edf0f5;
+      border-radius: 11px;
+      background: #fcfcfe;
+    }
+
+    .prefix-summary-label {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .prefix-summary strong {
+      color: var(--blue-dark);
+      font-size: 13px;
+      letter-spacing: -.02em;
+    }
+
+    .steps {
+      display: grid;
+      gap: 15px;
+      margin-top: 24px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+    }
+
+    .step-number {
+      display: grid;
+      width: 23px;
+      height: 23px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid #e5e9f2;
+      border-radius: 8px;
+      background: #fff;
+      color: #7c87a0;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .step-text strong {
+      display: block;
+      margin: 1px 0 2px;
+      font-size: 11px;
+    }
+
+    .step-text span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .side-note {
+      display: flex;
+      gap: 9px;
+      margin-top: 22px;
+      padding: 12px;
+      border-radius: 11px;
+      background: #f5f7ff;
+      color: #64708a;
+      font-size: 10px;
+    }
+
+    .side-note svg {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+      color: var(--blue);
+    }
+
+    .history-panel {
+      margin-top: 21px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .history-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .history-heading h4 {
+      margin: 0;
+      font-size: 12px;
+    }
+
+    .history-clear {
+      padding: 4px 0 4px 8px;
+      border: 0;
+      background: transparent;
+      color: var(--blue-dark);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .history-clear:disabled {
+      color: var(--muted-soft);
+      cursor: default;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .history-empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .history-item {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-alt);
+      color: var(--ink-soft);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .18s ease, transform .18s ease;
+    }
+
+    .history-item:hover {
+      border-color: var(--blue);
+      transform: translateY(-1px);
+    }
+
+    .history-address {
+      overflow: hidden;
+      font: 700 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .history-hosts {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 5;
+      padding: 11px 15px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 11px;
+      background: #1c2943;
+      box-shadow: 0 12px 35px rgba(21, 32, 55, .2);
+      color: #fff;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .footer {
+      margin-top: 21px;
+      color: #a1aabc;
+      font-size: 10px;
+      text-align: center;
+    }
+
+    @media (max-width: 850px) {
+      body {
+        padding: 26px 18px 42px;
+      }
+
+      .topbar {
+        margin-bottom: 39px;
+      }
+
+      .layout {
+        grid-template-columns: minmax(0, 1fr) 260px;
+        gap: 15px;
+      }
+
+      .app-card {
+        padding: 20px;
+      }
+
+      .side-card {
+        padding: 18px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      body {
+        padding: 20px 14px 34px;
+      }
+
+      .topbar {
+        gap: 10px;
+        margin-bottom: 34px;
+      }
+
+      .brand {
+        gap: 8px;
+      }
+
+      .brand-icon {
+        width: 38px;
+        height: 38px;
+      }
+
+      .brand-name {
+        font-size: 14px;
+      }
+
+      .topbar-note {
+        font-size: 0;
+      }
+
+      .topbar-note .status-dot {
+        width: 8px;
+        height: 8px;
+      }
+
+      .intro {
+        margin-bottom: 23px;
+      }
+
+      .intro {
+        grid-template-columns: minmax(0, 1fr) 230px;
+        gap: 16px;
+      }
+
+      .intro p {
+        font-size: 13px;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .intro {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-card {
+        max-width: 420px;
+      }
+
+      .side-card {
+        order: 2;
+      }
+
+      .app-card {
+        padding: 17px;
+        border-radius: 19px;
+      }
+
+      .side-card {
+        border-radius: 19px;
+      }
+
+      .steps {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .step {
+        gap: 7px;
+      }
+
+      .step-text span {
+        font-size: 9px;
+      }
+
+      .side-note {
+        margin-top: 17px;
+      }
+    }
+
+    @media (max-width: 440px) {
+      h1 {
+        font-size: 34px;
+      }
+
+      .tabs {
+        gap: 4px;
+        padding: 4px;
+      }
+
+      .tab {
+        gap: 6px;
+        font-size: 11px;
+      }
+
+      .mode-panel {
+        padding-top: 22px;
+      }
+
+      .section-heading h2 {
+        font-size: 17px;
+      }
+
+      .prefix-line {
+        gap: 10px;
+      }
+
+      .prefix-number {
+        width: 92px;
+      }
+
+      .prefix-caption {
+        font-size: 10px;
+      }
+
+      .result-item {
+        padding: 12px 11px;
+      }
+
+      .result-head {
+        padding: 13px 12px;
+      }
+
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .step-text span {
+        font-size: 10px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    :root[data-theme="dark"] .eyebrow {
+      border-color: rgba(132, 148, 255, .22);
+      background: rgba(38, 50, 88, .8);
+    }
+
+    :root[data-theme="dark"] .field-hint,
+    :root[data-theme="dark"] .range-scale,
+    :root[data-theme="dark"] .quick-label,
+    :root[data-theme="dark"] .host-count,
+    :root[data-theme="dark"] .footer {
+      color: var(--muted-soft);
+    }
+
+    :root[data-theme="dark"] .input-wrap input,
+    :root[data-theme="dark"] .host-input,
+    :root[data-theme="dark"] .chip,
+    :root[data-theme="dark"] .secondary,
+    :root[data-theme="dark"] .copy-button,
+    :root[data-theme="dark"] .step-number {
+      border-color: var(--line);
+      background: var(--surface-alt);
+      color: var(--ink-soft);
+    }
+
+    :root[data-theme="dark"] .side-heading-icon,
+    :root[data-theme="dark"] .result-check {
+      background: var(--blue-wash);
+      color: var(--blue-dark);
+    }
+
+    :root[data-theme="dark"] .prefix-summary,
+    :root[data-theme="dark"] .result-panel,
+    :root[data-theme="dark"] .result-item {
+      border-color: var(--line);
+      background: var(--surface);
+    }
+
+    :root[data-theme="dark"] .result-grid {
+      background: var(--line);
+    }
+
+    :root[data-theme="dark"] th,
+    :root[data-theme="dark"] td {
+      border-color: var(--line);
+    }
+
+    :root[data-theme="dark"] tbody tr:hover td {
+      background: var(--surface-alt);
+    }
+
+    :root[data-theme="dark"] .side-note {
+      background: var(--surface-alt);
+      color: var(--muted);
+    }
+
+    :root[data-theme="dark"] .history-item {
+      border-color: var(--line);
+      background: var(--surface-alt);
+      color: var(--ink-soft);
+    }
+
+    :root[data-theme="dark"] .bit {
+      background: #303b54;
+    }
+
+    :root[data-theme="dark"] .bit.network {
+      background: linear-gradient(145deg, #9aa8ff, #667cff);
+    }
+
+    :root[data-theme="dark"] .bit.host {
+      background: #57c9a4;
+    }
+
+    :root[data-theme="dark"] input[type="range"] {
+      background: linear-gradient(to right, var(--blue) 0%, var(--blue) var(--range-progress, 75%), #303b54 var(--range-progress, 75%), #303b54 100%);
+    }
+
+    :root[data-theme="dark"] .error {
+      border-color: rgba(255, 130, 144, .28);
+      background: rgba(85, 34, 49, .4);
+      color: #ff9aa5;
+    }
+
+    @media (max-width: 700px) {
+      .topbar-actions {
+        gap: 8px;
+      }
+
+      .theme-toggle {
+        width: 40px;
+        padding: 0;
+      }
+
+      .theme-toggle span {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Network Planner, halaman utama">
+        <span class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 3.5 19 7.4v9.2L12 20.5l-7-3.9V7.4l7-3.9Z" stroke="currentColor" stroke-width="1.7"
+              stroke-linejoin="round" />
+            <path d="m8.6 9.3 3.4-1.9 3.4 1.9v5.4L12 16.6l-3.4-1.9V9.3Z" stroke="currentColor" stroke-width="1.5"
+              stroke-linejoin="round" />
+            <path d="M12 7.4v9.2m-3.4-7.3 6.8 3.8" stroke="currentColor" stroke-width="1.3" />
+          </svg>
+        </span>
+        <span><span class="brand-name">Network Planner</span><span class="brand-subtitle">IPv4 toolkit</span></span>
+      </a>
+      <div class="topbar-actions">
+        <div class="topbar-note"><span class="status-dot" aria-hidden="true"></span>Siap menghitung</div>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Aktifkan tema gelap">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M16.4 12.5A6.8 6.8 0 0 1 7.5 3.6a6.8 6.8 0 1 0 8.9 8.9Z" stroke="currentColor"
+              stroke-width="1.5" stroke-linejoin="round" />
+          </svg>
+          <span>Tema</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="intro">
+      <div class="intro-copy">
+        <div class="eyebrow"><span class="eyebrow-mark"></span>TOOLS JARINGAN</div>
+        <h1>Rencanakan jaringan<br>tanpa ribet.</h1>
+        <p>Hitung subnet IPv4 dan alokasikan kebutuhan host dengan VLSM dalam beberapa detik.</p>
+      </div>
+      <div class="hero-card" aria-label="Ringkasan kemampuan Network Planner">
+        <div class="hero-card-top"><span>NETWORK PLANNER</span><span class="hero-live">READY</span></div>
+        <div class="hero-card-value">32<span>bit IPv4</span></div>
+        <div class="hero-bits" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <div class="hero-card-bottom">
+          <div class="hero-metric"><span>Prefix jaringan</span><strong>/0 sampai /32</strong></div>
+          <div class="hero-metric"><span>Mode kalkulator</span><strong>Subnet + VLSM</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="app-card" aria-label="Kalkulator jaringan">
+        <div class="tabs" role="tablist" aria-label="Mode kalkulator">
+          <button class="tab active" id="tab-subnet" type="button" role="tab" aria-selected="true"
+            aria-controls="panel-subnet" data-tab="subnet">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <rect x="3" y="3" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.5" />
+              <rect x="12" y="3" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.5" />
+              <rect x="3" y="12" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.5" />
+              <rect x="12" y="12" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.5" />
+            </svg>
+            Kalkulator Subnet
+          </button>
+          <button class="tab" id="tab-vlsm" type="button" role="tab" aria-selected="false" aria-controls="panel-vlsm"
+            data-tab="vlsm" tabindex="-1">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M4 5h12M4 10h8M4 15h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+              <circle cx="15" cy="10" r="2" stroke="currentColor" stroke-width="1.5" />
+              <circle cx="12" cy="15" r="2" stroke="currentColor" stroke-width="1.5" />
+            </svg>
+            Kalkulator VLSM
+          </button>
+        </div>
+
+        <section class="mode-panel" id="panel-subnet" role="tabpanel" aria-labelledby="tab-subnet">
+          <div class="section-heading">
+            <div>
+              <h2>Hitung subnet</h2>
+              <p>Masukkan alamat IPv4 dan tentukan prefix jaringan.</p>
+            </div>
+            <span class="section-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none">
+                <path d="M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Z" stroke="currentColor" stroke-width="1.5"
+                  stroke-linejoin="round" />
+                <path d="M3.3 6.7 10 10l6.7-3.3M10 10v7" stroke="currentColor" stroke-width="1.4"
+                  stroke-linejoin="round" />
+              </svg></span>
+          </div>
+          <form id="subnet-form">
+            <div class="field">
+              <label class="field-label" for="ip">IP address <span class="field-hint">IPv4</span></label>
+              <div class="input-wrap"><input id="ip" name="ip" type="text" inputmode="decimal" autocomplete="off"
+                  placeholder="Contoh: 192.168.1.10" aria-label="IP address IPv4"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="prefix">Prefix</label>
+              <div class="prefix-line">
+                <div class="input-wrap prefix-number"><input id="prefix" name="prefix" type="number" min="0" max="32"
+                    inputmode="numeric" placeholder="24" aria-label="Prefix jaringan"><span
+                    class="input-suffix">/32</span></div>
+                <div class="range-wrap"><input id="prefix-range" type="range" min="0" max="32" value="24"
+                    aria-label="Atur prefix jaringan">
+                  <div class="range-scale"><span>/0</span><span>/16</span><span>/32</span></div>
+                </div>
+              </div>
+              <div class="prefix-caption"><span>Mask: <strong id="mask-preview">255.255.255.0</strong></span><span
+                  id="host-preview">254 host tersedia</span></div>
+            </div>
+            <div class="quick-examples" aria-label="Contoh alamat"><span class="quick-label">Coba contoh:</span><button
+                class="chip" type="button" data-ip="192.168.1.10" data-prefix="24">/24</button><button class="chip"
+                type="button" data-ip="172.16.5.130" data-prefix="25">/25</button><button class="chip" type="button"
+                data-ip="10.0.0.1" data-prefix="30">/30</button></div>
+            <button class="primary" type="submit"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M3.5 10h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>Hitung subnet</button>
+          </form>
+          <div id="hasilSubnet" class="result" aria-live="polite"></div>
+        </section>
+
+        <section class="mode-panel" id="panel-vlsm" role="tabpanel" aria-labelledby="tab-vlsm" hidden>
+          <div class="section-heading">
+            <div>
+              <h2>Alokasi VLSM</h2>
+              <p>Bagikan blok jaringan sesuai kebutuhan setiap segmen.</p>
+            </div>
+            <span class="section-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none">
+                <path d="M4 4.5h12M4 9.8h8.5M4 15.1h5" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" />
+                <circle cx="15.5" cy="9.8" r="2" stroke="currentColor" stroke-width="1.5" />
+                <circle cx="12" cy="15.1" r="2" stroke="currentColor" stroke-width="1.5" />
+              </svg></span>
+          </div>
+          <form id="vlsm-form">
+            <div class="field">
+              <label class="field-label" for="network">Network CIDR <span class="field-hint">alamat
+                  network</span></label>
+              <div class="input-wrap"><input id="network" name="network" type="text" autocomplete="off"
+                  placeholder="Contoh: 192.168.1.0/24"></div>
+            </div>
+            <div class="host-label-row"><label for="host-1">Kebutuhan host</label><span class="host-count"
+                id="host-count">1 kebutuhan</span></div>
+            <div class="host-list" id="hostContainer">
+              <div class="host-row"><input id="host-1" type="number" class="host-input" min="1" inputmode="numeric"
+                  placeholder="Jumlah host, mis. 100" aria-label="Kebutuhan host 1"><button class="remove-host"
+                  type="button" aria-label="Hapus kebutuhan host" title="Hapus kebutuhan host" disabled><svg
+                    viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M5 6h10m-8.5 0 .6 10h5.8l.6-10M8 6V4h4v2m-3 3v4m2-4v4" stroke="currentColor"
+                      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg></button></div>
+            </div>
+            <div class="button-row">
+              <button class="secondary add-host" id="add-host" type="button"><svg viewBox="0 0 20 20" fill="none"
+                  aria-hidden="true">
+                  <path d="M10 4v12m6-6H4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                </svg>Tambah kebutuhan</button>
+              <button class="chip" id="vlsm-example" type="button">Isi contoh</button>
+            </div>
+            <button class="primary" type="submit"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M3.5 10h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>Alokasikan jaringan</button>
+          </form>
+          <div id="hasilVLSM" class="result" aria-live="polite"></div>
+        </section>
+      </section>
+
+      <aside class="side-card">
+        <div class="side-heading"><span class="side-heading-icon" aria-hidden="true"><svg viewBox="0 0 20 20"
+              fill="none">
+              <path
+                d="M10 2.8v2m0 10.4v2M2.8 10h2m10.4 0h2M4.9 4.9l1.4 1.4m7.4 7.4 1.4 1.4m0-10.2-1.4 1.4m-7.4 7.4-1.4 1.4"
+                stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+              <circle cx="10" cy="10" r="4" stroke="currentColor" stroke-width="1.5" />
+            </svg></span>
+          <h3>Visualisasi prefix</h3>
+        </div>
+        <p class="side-copy">Lihat pembagian 32 bit alamat IPv4 secara langsung.</p>
+        <div class="bit-legend"><span><i class="legend-dot"></i>Network bit</span><span><i
+              class="legend-dot host"></i>Host bit</span></div>
+        <div class="bit-grid" id="bit-grid" aria-label="Visualisasi 32 bit alamat IPv4"></div>
+        <div class="prefix-summary"><span class="prefix-summary-label">Prefix terpilih</span><strong
+            id="prefix-summary">/24</strong></div>
+        <div class="steps">
+          <div class="step"><span class="step-number">1</span>
+            <div class="step-text"><strong>Masukkan IP</strong><span>Isi alamat IPv4 yang ingin dianalisis.</span></div>
+          </div>
+          <div class="step"><span class="step-number">2</span>
+            <div class="step-text"><strong>Atur prefix</strong><span>Geser slider atau ketik angka prefix.</span></div>
+          </div>
+          <div class="step"><span class="step-number">3</span>
+            <div class="step-text"><strong>Lihat hasil</strong><span>Network, host, dan broadcast tampil
+                otomatis.</span></div>
+          </div>
+        </div>
+        <div class="side-note"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" />
+            <path d="M10 9v4m0-6h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg><span>Mode <strong>/31</strong> dan <strong>/32</strong> mengikuti aturan khusus IPv4.</span></div>
+        <section class="history-panel" aria-label="Riwayat perhitungan subnet">
+          <div class="history-heading">
+            <h4>Subnet terakhir</h4>
+            <button class="history-clear" id="clear-subnet-history" type="button">Hapus</button>
+          </div>
+          <div class="history-list" id="subnet-history-list" aria-live="polite"></div>
+        </section>
+      </aside>
+    </div>
+    <footer class="footer">Network Planner · Kalkulator subnet IPv4</footer>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+
+    function aman(teks) {
+      return String(teks).replace(/[&<>"']/g, karakter => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[karakter]);
+    }
+
+    function gantiTab(mode) {
+      $$(".tab").forEach(tombol => {
+        const aktif = tombol.dataset.tab === mode;
+        tombol.classList.toggle("active", aktif);
+        tombol.setAttribute("aria-selected", String(aktif));
+        tombol.tabIndex = aktif ? 0 : -1;
+      });
+      $$(".mode-panel").forEach(panel => {
+        panel.hidden = panel.id !== `panel-${mode}`;
+      });
+    }
+
+    function infoPrefix(prefix) {
+      const angka = Number(prefix);
+      if (!Number.isInteger(angka) || angka < 0 || angka > 32) return null;
+      const mask = angka === 0 ? 0 : (0xffffffff << (32 - angka)) >>> 0;
+      const oktet = [24, 16, 8, 0].map(geser => (mask >>> geser) & 255).join(".");
+      const host = angka === 31 ? 2 : angka === 32 ? 1 : (2 ** (32 - angka)) - 2;
+      return { mask: oktet, host };
+    }
+
+    function perbaruiPrefix(nilai) {
+      const prefix = Number(nilai);
+      if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) return;
+      $("#prefix").value = prefix;
+      $("#prefix-range").value = prefix;
+      $("#prefix-range").style.setProperty("--range-progress", `${(prefix / 32) * 100}%`);
+      $("#prefix-summary").textContent = `/${prefix}`;
+      const info = infoPrefix(prefix);
+      $("#mask-preview").textContent = info.mask;
+      $("#host-preview").textContent = `${info.host.toLocaleString("id-ID")} host tersedia`;
+      $$(".bit").forEach((bit, index) => {
+        bit.classList.toggle("network", index < prefix);
+        bit.classList.toggle("host", index >= prefix);
+      });
+    }
+
+    function buatVisualisasiBit() {
+      const grid = $("#bit-grid");
+      for (let index = 0; index < 32; index += 1) {
+        const bit = document.createElement("span");
+        bit.className = "bit";
+        bit.setAttribute("aria-hidden", "true");
+        grid.appendChild(bit);
+      }
+      perbaruiPrefix($("#prefix-range").value);
+    }
+
+    const kunciRiwayatSubnet = "network-planner-subnet-history";
+    function bacaRiwayatSubnet() {
+      try {
+        const riwayat = JSON.parse(localStorage.getItem(kunciRiwayatSubnet) || "[]");
+        if (!Array.isArray(riwayat)) return [];
+        return riwayat.filter(item =>
+          item &&
+          typeof item.ip === "string" &&
+          typeof item.network === "string" &&
+          Number.isInteger(item.prefix) &&
+          item.prefix >= 0 &&
+          item.prefix <= 32 &&
+          Number.isInteger(item.hosts) &&
+          item.hosts >= 0
+        ).slice(0, 5);
+      } catch (error) {
+        console.error("Riwayat subnet tidak dapat dibaca.", error);
+        return [];
+      }
+    }
+
+    function tampilkanRiwayatSubnet() {
+      const daftar = $("#subnet-history-list");
+      const tombolHapus = $("#clear-subnet-history");
+      const riwayat = bacaRiwayatSubnet();
+      daftar.replaceChildren();
+      tombolHapus.disabled = riwayat.length === 0;
+      if (riwayat.length === 0) {
+        const kosong = document.createElement("p");
+        kosong.className = "history-empty";
+        kosong.textContent = "Perhitungan subnet terbaru akan tersimpan di browser ini.";
+        daftar.appendChild(kosong);
+        return;
+      }
+
+      riwayat.forEach((item, index) => {
+        const tombol = document.createElement("button");
+        tombol.className = "history-item";
+        tombol.type = "button";
+        tombol.dataset.historyIndex = String(index);
+        tombol.setAttribute("aria-label", `Hitung ulang ${item.network}/${item.prefix}`);
+        const alamat = document.createElement("span");
+        alamat.className = "history-address";
+        alamat.textContent = `${item.network}/${item.prefix}`;
+        const host = document.createElement("span");
+        host.className = "history-hosts";
+        host.textContent = `${item.hosts.toLocaleString("id-ID")} host`;
+        tombol.append(alamat, host);
+        daftar.appendChild(tombol);
+      });
+    }
+
+    function simpanRiwayatSubnet(item) {
+      try {
+        const riwayat = bacaRiwayatSubnet().filter(
+          tersimpan => tersimpan.ip !== item.ip || tersimpan.prefix !== item.prefix
+        );
+        riwayat.unshift(item);
+        localStorage.setItem(kunciRiwayatSubnet, JSON.stringify(riwayat.slice(0, 5)));
+        tampilkanRiwayatSubnet();
+      } catch (error) {
+        console.error("Riwayat subnet tidak dapat disimpan.", error);
+      }
+    }
+
+    function barisHasil(label, value, highlight = false) {
+      return `<div class="result-item${highlight ? " highlight" : ""}"><span class="result-label">${label}</span><span class="result-value">${aman(value)}</span></div>`;
+    }
+
+    function tombolSalin(teks, label = "Salin hasil") {
+      return `<button class="copy-button" type="button" data-copy="${aman(teks)}"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="7" width="9" height="10" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M12.5 7V5.8A1.8 1.8 0 0 0 10.7 4H5.8A1.8 1.8 0 0 0 4 5.8v4.9a1.8 1.8 0 0 0 1.8 1.8H7" stroke="currentColor" stroke-width="1.5"/></svg>${label}</button>`;
+    }
+
+    function judulHasil(judul, teksSalinan = "", aksiTambahan = "") {
+      return `<div class="result-head"><div class="result-title-wrap"><span class="result-check"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 10 3.2 3.2L15.5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="result-title">${judul}</span></div><div class="result-actions">${teksSalinan ? tombolSalin(teksSalinan) : ""}${aksiTambahan}</div></div>`;
+    }
+
+    async function hitungSubnet() {
+      const ip = $("#ip").value.trim();
+      const prefix = $("#prefix").value.trim();
+      const hasil = $("#hasilSubnet");
+      const tombol = $('#subnet-form button[type="submit"]');
+      hasil.innerHTML = "";
+      tombol.disabled = true;
+      tombol.setAttribute("aria-busy", "true");
+      try {
+        const response = await fetch(`/api/subnet?ip=${encodeURIComponent(ip)}&prefix=${encodeURIComponent(prefix)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Terjadi kesalahan");
+        const teksSalinan = [
+          `Network: ${data.network}/${prefix}`,
+          `Subnet Mask: ${data.mask}`,
+          `Broadcast: ${data.broadcast ?? "-"}`,
+          `First Host: ${data.first_host}`,
+          `Last Host: ${data.last_host}`,
+          `Jumlah Host: ${data.usable_hosts}`
+        ].join("\n");
+        hasil.innerHTML = `<div class="result-panel">${judulHasil("Hasil perhitungan", teksSalinan)}<div class="result-grid">${barisHasil("Network address", data.network, true) +
+          barisHasil("Subnet mask", data.mask) +
+          barisHasil("Broadcast address", data.broadcast ?? "-") +
+          barisHasil("First host", data.first_host) +
+          barisHasil("Last host", data.last_host) +
+          barisHasil("Host tersedia", Number(data.usable_hosts).toLocaleString("id-ID"), true)
+          }</div></div>`;
+        simpanRiwayatSubnet({
+          ip,
+          prefix: Number(prefix),
+          network: data.network,
+          hosts: Number(data.usable_hosts)
+        });
+      } catch (error) {
+        hasil.innerHTML = `<p class="error"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4m0 3h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>${aman(error.message)}</p>`;
+      } finally {
+        tombol.disabled = false;
+        tombol.removeAttribute("aria-busy");
+      }
+    }
+
+    function perbaruiHost() {
+      const barisHost = $$(".host-row", $("#hostContainer"));
+      $("#host-count").textContent = `${barisHost.length} kebutuhan`;
+      barisHost.forEach((baris, index) => {
+        const input = $(".host-input", baris);
+        const tombolHapus = $(".remove-host", baris);
+        input.id = `host-${index + 1}`;
+        input.setAttribute("aria-label", `Kebutuhan host ${index + 1}`);
+        tombolHapus.disabled = barisHost.length === 1;
+        tombolHapus.setAttribute("aria-label", `Hapus kebutuhan host ${index + 1}`);
+      });
+    }
+
+    function tambahHost(nilai = "") {
+      const nomor = $$(".host-row", $("#hostContainer")).length + 1;
+      const baris = document.createElement("div");
+      baris.className = "host-row";
+      baris.innerHTML = `<input type="number" class="host-input" min="1" inputmode="numeric" placeholder="Jumlah host, mis. 50" aria-label="Kebutuhan host ${nomor}"><button class="remove-host" type="button" aria-label="Hapus kebutuhan host ${nomor}" title="Hapus kebutuhan host"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M5 6h10m-8.5 0 .6 10h5.8l.6-10M8 6V4h4v2m-3 3v4m2-4v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+      $(".host-input", baris).value = nilai;
+      $("#hostContainer").appendChild(baris);
+      perbaruiHost();
+      $(".host-input", baris).focus();
+    }
+
+    let hasilVLSMTerakhir = [];
+
+    async function hitungVLSM() {
+      const network = $("#network").value.trim();
+      const inputs = $$(".host-input", $("#hostContainer"));
+      const kebutuhan_host = inputs.map(input => input.value === "" ? null : Number(input.value));
+      const hasil = $("#hasilVLSM");
+      const tombol = $('#vlsm-form button[type="submit"]');
+      hasilVLSMTerakhir = [];
+      hasil.innerHTML = "";
+      tombol.disabled = true;
+      tombol.setAttribute("aria-busy", "true");
+      try {
+        const response = await fetch("/api/vlsm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ network, kebutuhan_host })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Terjadi kesalahan");
+        hasilVLSMTerakhir = data;
+        const tombolUnduh = `<button class="copy-button" type="button" data-export-vlsm><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3.5v9m0 0 3.2-3.2M10 12.5 6.8 9.3M4 13.5v2A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Unduh CSV</button>`;
+        const teksSalinan = data.map(item => `${item.kebutuhan} host → ${item.network_cidr}`).join("\n");
+        let tabel = `<div class="result-panel">${judulHasil("Rencana alokasi VLSM", teksSalinan, tombolUnduh)}<div class="table-wrap"><table><thead><tr><th>Kebutuhan</th><th>Network CIDR</th><th>Subnet mask</th><th>First host</th><th>Last host</th><th>Broadcast</th></tr></thead><tbody>`;
+        data.forEach(item => {
+          tabel += `<tr><td>${aman(item.kebutuhan)} host</td><td>${aman(item.network_cidr)}</td><td>${aman(item.mask)}</td><td>${aman(item.first_host)}</td><td>${aman(item.last_host)}</td><td>${aman(item.broadcast ?? "-")}</td></tr>`;
+        });
+        hasil.innerHTML = tabel + "</tbody></table></div></div>";
+      } catch (error) {
+        hasil.innerHTML = `<p class="error"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4m0 3h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>${aman(error.message)}</p>`;
+      } finally {
+        tombol.disabled = false;
+        tombol.removeAttribute("aria-busy");
+      }
+    }
+
+    let toastTimer;
+    function tampilkanToast(teks) {
+      const toast = $("#toast");
+      toast.textContent = teks;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 2000);
+    }
+
+    async function salin(teks) {
+      try {
+        await navigator.clipboard.writeText(teks);
+        tampilkanToast("Hasil berhasil disalin");
+      } catch {
+        const area = document.createElement("textarea");
+        area.value = teks;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const berhasil = document.execCommand("copy");
+        area.remove();
+        if (!berhasil) throw new Error("Gagal menyalin hasil");
+        tampilkanToast("Hasil berhasil disalin");
+      }
+    }
+
+    function unduhCsvVLSM(data) {
+      const kolom = [
+        ["Kebutuhan host", "kebutuhan"],
+        ["Network CIDR", "network_cidr"],
+        ["Subnet mask", "mask"],
+        ["First host", "first_host"],
+        ["Last host", "last_host"],
+        ["Broadcast", "broadcast"]
+      ];
+      const escapeCsv = nilai => `"${String(nilai ?? "-").replace(/"/g, '""')}"`;
+      const baris = [
+        kolom.map(([judul]) => escapeCsv(judul)).join(","),
+        ...data.map(item => kolom.map(([, kunci]) => escapeCsv(item[kunci])).join(","))
+      ];
+      const blob = new Blob(["\uFEFF", baris.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const tautan = document.createElement("a");
+      const namaNetwork = $("#network").value.trim().replace(/[^\w.-]+/g, "_");
+      tautan.href = url;
+      tautan.download = `alokasi-vlsm-${namaNetwork || "hasil"}.csv`;
+      document.body.appendChild(tautan);
+      tautan.click();
+      tautan.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    const tombolTema = $("#theme-toggle");
+    const ikonTema = {
+      light: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.4 12.5A6.8 6.8 0 0 1 7.5 3.6a6.8 6.8 0 1 0 8.9 8.9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
+      dark: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v1.7m0 11.6v1.7M2.5 10h1.7m11.6 0h1.7M4.7 4.7l1.2 1.2m8.2 8.2 1.2 1.2m0-10.6-1.2 1.2m-8.2 8.2-1.2 1.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
+    };
+    function aturTema(tema, simpan = false) {
+      document.documentElement.dataset.theme = tema;
+      tombolTema.innerHTML = `${ikonTema[tema]}<span>Tema</span>`;
+      tombolTema.setAttribute("aria-label", tema === "dark" ? "Aktifkan tema terang" : "Aktifkan tema gelap");
+      tombolTema.title = tema === "dark" ? "Aktifkan tema terang" : "Aktifkan tema gelap";
+      $('meta[name="theme-color"]').content = tema === "dark" ? "#0e1626" : "#f4f6fc";
+      if (simpan) {
+        try {
+          localStorage.setItem("network-planner-theme", tema);
+        } catch (error) {
+          console.error("Preferensi tema tidak dapat disimpan.", error);
+        }
+      }
+    }
+    let temaAwal = "light";
+    try {
+      const temaTersimpan = localStorage.getItem("network-planner-theme");
+      if (temaTersimpan === "dark" || temaTersimpan === "light") temaAwal = temaTersimpan;
+    } catch (error) {
+      console.error("Preferensi tema tidak dapat dibaca.", error);
+    }
+    aturTema(temaAwal);
+    tombolTema.addEventListener("click", () => {
+      const temaBaru = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      aturTema(temaBaru, true);
+    });
+
+    $$(".tab").forEach((tombol, index, daftar) => {
+      tombol.addEventListener("click", () => gantiTab(tombol.dataset.tab));
+      tombol.addEventListener("keydown", event => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        const next = daftar[(index + (event.key === "ArrowRight" ? 1 : -1) + daftar.length) % daftar.length];
+        gantiTab(next.dataset.tab);
+        next.focus();
+      });
+    });
+
+    $("#prefix").addEventListener("input", event => perbaruiPrefix(event.target.value));
+    $("#prefix-range").addEventListener("input", event => perbaruiPrefix(event.target.value));
+    $$(".chip[data-ip]").forEach(tombol => {
+      tombol.addEventListener("click", () => {
+        $("#ip").value = tombol.dataset.ip;
+        perbaruiPrefix(tombol.dataset.prefix);
+        $("#ip").focus();
+      });
+    });
+    $("#subnet-form").addEventListener("submit", event => {
+      event.preventDefault();
+      hitungSubnet();
+    });
+    $("#subnet-history-list").addEventListener("click", event => {
+      const tombol = event.target.closest("[data-history-index]");
+      if (!tombol) return;
+      const item = bacaRiwayatSubnet()[Number(tombol.dataset.historyIndex)];
+      if (!item) return;
+      $("#ip").value = item.ip;
+      perbaruiPrefix(item.prefix);
+      gantiTab("subnet");
+      hitungSubnet();
+    });
+    $("#clear-subnet-history").addEventListener("click", () => {
+      try {
+        localStorage.removeItem(kunciRiwayatSubnet);
+        tampilkanRiwayatSubnet();
+      } catch (error) {
+        console.error("Riwayat subnet tidak dapat dihapus.", error);
+      }
+    });
+    $("#add-host").addEventListener("click", () => tambahHost());
+    $("#hostContainer").addEventListener("click", event => {
+      const tombol = event.target.closest(".remove-host");
+      if (!tombol || tombol.disabled) return;
+      tombol.closest(".host-row").remove();
+      perbaruiHost();
+    });
+    $("#vlsm-example").addEventListener("click", () => {
+      $("#network").value = "192.168.1.0/24";
+      $("#hostContainer").innerHTML = "";
+      [100, 50, 20, 2].forEach(nilai => tambahHost(nilai));
+      $("#network").focus();
+    });
+    $("#vlsm-form").addEventListener("submit", event => {
+      event.preventDefault();
+      hitungVLSM();
+    });
+    document.addEventListener("click", event => {
+      const tombol = event.target.closest("[data-copy]");
+      if (tombol) salin(tombol.dataset.copy).catch(() => tampilkanToast("Tidak dapat menyalin hasil"));
+      if (event.target.closest("[data-export-vlsm]") && hasilVLSMTerakhir.length) {
+        unduhCsvVLSM(hasilVLSMTerakhir);
+        tampilkanToast("File CSV berhasil diunduh");
+      }
+    });
+
+    buatVisualisasiBit();
+    perbaruiHost();
+    tampilkanRiwayatSubnet();
+  </script>
+</body>
+
+</html>
